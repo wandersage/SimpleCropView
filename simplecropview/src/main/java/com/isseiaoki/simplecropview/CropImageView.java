@@ -17,9 +17,11 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.BitmapRegionDecoder;
 import android.graphics.Canvas;
+import android.graphics.DashPathEffect;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.PathEffect;
 import android.graphics.PointF;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
@@ -137,6 +139,7 @@ public class CropImageView extends ImageView {
     private boolean mIsAnimationEnabled = true;
     private int mAnimationDurationMillis = DEFAULT_ANIMATION_DURATION_MILLIS;
     private boolean mIsHandleShadowEnabled = true;
+    private DashPathEffect dashEffect = new DashPathEffect(new float[]{10, 20}, 0);
 
     // Constructor /////////////////////////////////////////////////////////////////////////////////
 
@@ -492,17 +495,46 @@ public class CropImageView extends ImageView {
         canvas.drawRect(mFrameRect, mPaintFrame);
     }
 
+    //    private void drawGuidelines(Canvas canvas) {
+//        mPaintFrame.setColor(mGuideColor);
+//        mPaintFrame.setStrokeWidth(mGuideStrokeWeight);
+//        float h1 = mFrameRect.left + (mFrameRect.right - mFrameRect.left) / 3.0f;
+//        float h2 = mFrameRect.right - (mFrameRect.right - mFrameRect.left) / 3.0f;
+//        float v1 = mFrameRect.top + (mFrameRect.bottom - mFrameRect.top) / 3.0f;
+//        float v2 = mFrameRect.bottom - (mFrameRect.bottom - mFrameRect.top) / 3.0f;
+//        canvas.drawLine(h1, mFrameRect.top, h1, mFrameRect.bottom, mPaintFrame);
+//        canvas.drawLine(h2, mFrameRect.top, h2, mFrameRect.bottom, mPaintFrame);
+//        canvas.drawLine(mFrameRect.left, v1, mFrameRect.right, v1, mPaintFrame);
+//        canvas.drawLine(mFrameRect.left, v2, mFrameRect.right, v2, mPaintFrame);
+//    }
     private void drawGuidelines(Canvas canvas) {
         mPaintFrame.setColor(mGuideColor);
         mPaintFrame.setStrokeWidth(mGuideStrokeWeight);
-        float h1 = mFrameRect.left + (mFrameRect.right - mFrameRect.left) / 3.0f;
-        float h2 = mFrameRect.right - (mFrameRect.right - mFrameRect.left) / 3.0f;
-        float v1 = mFrameRect.top + (mFrameRect.bottom - mFrameRect.top) / 3.0f;
-        float v2 = mFrameRect.bottom - (mFrameRect.bottom - mFrameRect.top) / 3.0f;
-        canvas.drawLine(h1, mFrameRect.top, h1, mFrameRect.bottom, mPaintFrame);
-        canvas.drawLine(h2, mFrameRect.top, h2, mFrameRect.bottom, mPaintFrame);
-        canvas.drawLine(mFrameRect.left, v1, mFrameRect.right, v1, mPaintFrame);
-        canvas.drawLine(mFrameRect.left, v2, mFrameRect.right, v2, mPaintFrame);
+        mPaintFrame.setStyle(Paint.Style.STROKE);
+        mPaintFrame.setPathEffect(dashEffect);
+
+
+        float x1, x2, y1, y2;
+        x1 = mFrameRect.left + (mFrameRect.right - mFrameRect.left) / 3.5f;
+        x2 = mFrameRect.right - (mFrameRect.right - mFrameRect.left) / 3.5f;
+        y1 = mFrameRect.top + (mFrameRect.bottom - mFrameRect.top) / 3.5f;
+        y2 = mFrameRect.bottom - (mFrameRect.bottom - mFrameRect.top) / 3.5f;
+        RectF r1, r2;
+        if (mFrameRect.height() <= mFrameRect.width()) {
+            double rad90 = Math.toRadians(90);
+            r1 = new RectF(x1, mFrameRect.top, x2, mFrameRect.bottom);
+//            r2 = new RectF((float)(x1*Math.cos(rad90)-y1*Math.sin(90)),
+//                    (float) (x1*Math.sin(rad90)+y1*Math.cos(90)),
+//                    (float)(x2*Math.cos(rad90)-y2*Math.sin(90)),
+//                    (float) (x2*Math.sin(rad90)+y2*Math.cos(90)));
+
+            r2 = new RectF(x1 + mFrameRect.top - y1, y1, x2 + mFrameRect.bottom - y2, y2);
+        } else {
+            r1 = new RectF(x1, y1 + mFrameRect.left - x1, x2, y2 + mFrameRect.right - x2);
+            r2 = new RectF(mFrameRect.left, y1, mFrameRect.right, y2);
+        }
+        canvas.drawRect(r1, mPaintFrame);
+        canvas.drawRect(r2, mPaintFrame);
     }
 
     private void drawHandles(Canvas canvas) {
@@ -1800,7 +1832,7 @@ public class CropImageView extends ImageView {
 
     /**
      * Set crop frame handle touch padding(touch area) in density-independent pixels.
-     *
+     * <p/>
      * handle touch area : a circle of radius R.(R = handle size + touch padding)
      *
      * @param paddingDp crop frame handle touch padding(touch area) in density-independent pixels
