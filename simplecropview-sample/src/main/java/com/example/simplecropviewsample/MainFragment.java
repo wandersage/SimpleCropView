@@ -11,6 +11,7 @@ import android.app.Activity;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.Point;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -18,12 +19,19 @@ import android.support.annotation.NonNull;
 import android.support.annotation.StringRes;
 import android.support.v4.app.Fragment;
 import android.support.v7.app.AlertDialog;
+import android.util.DisplayMetrics;
+import android.util.Log;
+import android.view.Display;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 
 import java.io.File;
+import java.lang.reflect.Method;
 
 import permissions.dispatcher.NeedsPermission;
 import permissions.dispatcher.OnShowRationale;
@@ -39,6 +47,7 @@ public class MainFragment extends Fragment {
     // Views ///////////////////////////////////////////////////////////////////////////////////////
     private CropImageView mCropView;
     private LinearLayout mRootLayout;
+    private ImageView preview;
 
     // Note: only the system can call this constructor by reflection. 
     public MainFragment() {
@@ -98,6 +107,16 @@ public class MainFragment extends Fragment {
 
     private void bindViews(View view) {
         mCropView = (CropImageView) view.findViewById(R.id.cropImageView);
+
+        preview = (ImageView) view.findViewById(R.id.imageView);
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(MainActivity.getPoint(getActivity()).x/5,
+                MainActivity.getPoint(getActivity()).y/5);
+        params.gravity = Gravity.END|Gravity.BOTTOM;
+        int padding = getResources().getDimensionPixelOffset(R.dimen.preview_padding);
+        params.setMargins(padding,padding,padding,padding);
+        preview.setLayoutParams(params);
+
+        preview.setScaleType(ImageView.ScaleType.CENTER_CROP);
         view.findViewById(R.id.buttonDone).setOnClickListener(btnListener);
         view.findViewById(R.id.buttonFitImage).setOnClickListener(btnListener);
         view.findViewById(R.id.button1_1).setOnClickListener(btnListener);
@@ -113,6 +132,48 @@ public class MainFragment extends Fragment {
         view.findViewById(R.id.buttonCircle).setOnClickListener(btnListener);
         view.findViewById(R.id.buttonShowCircleButCropAsSquare).setOnClickListener(btnListener);
         mRootLayout = (LinearLayout) view.findViewById(R.id.layout_root);
+        Point point = getPoint(getActivity());
+
+        mCropView.setScreenRatio(point.x,point.y);
+        mCropView.setBitmapPreviewListener(new CropImageView.BitmapPreviewListener() {
+            @Override
+            public void onBitmapPreview(Bitmap bitmap) {
+                    preview.setImageBitmap(bitmap);
+            }
+        });
+    }
+    public static Point getPoint(Activity context){
+        Display display = context.getWindowManager().getDefaultDisplay();
+        int realWidth;
+        int realHeight;
+
+        if (Build.VERSION.SDK_INT >= 17){
+            //new pleasant way to get real metrics
+            DisplayMetrics realMetrics = new DisplayMetrics();
+            display.getRealMetrics(realMetrics);
+            realWidth = realMetrics.widthPixels;
+            realHeight = realMetrics.heightPixels;
+
+        } else if (Build.VERSION.SDK_INT >= 14) {
+            //reflection for this weird in-between time
+            try {
+                Method mGetRawH = Display.class.getMethod("getRawHeight");
+                Method mGetRawW = Display.class.getMethod("getRawWidth");
+                realWidth = (Integer) mGetRawW.invoke(display);
+                realHeight = (Integer) mGetRawH.invoke(display);
+            } catch (Exception e) {
+                //this may not be 100% accurate, but it's all we've got
+                realWidth = display.getWidth();
+                realHeight = display.getHeight();
+                Log.e("Display Info", "Couldn't use reflection to get the real display metrics.");
+            }
+
+        } else {
+            //This should be close, as lower API devices should not have window navigation bars
+            realWidth = display.getWidth();
+            realHeight = display.getHeight();
+        }
+        return new Point(realWidth,realHeight);
     }
 
     @NeedsPermission(Manifest.permission.READ_EXTERNAL_STORAGE)
